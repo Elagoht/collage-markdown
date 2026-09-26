@@ -25,9 +25,9 @@ app.RegisterPage(collage.NewPage("post").
 	Build())
 ```
 
-Requires collage v0.23.0 or later. Register it in `Config.Plugins`: it reads its
-configuration while the application is built, so a static build can list the files
-before the application starts.
+Requires collage v0.24.0 or later. Register it in `Config.Plugins` or with
+`app.RegisterPlugin`: it reads its configuration and its files when the application
+starts, which a static build does before it lists the pages to write.
 
 ## What it gives you
 
@@ -196,8 +196,9 @@ docs := markdown.New(markdown.Options{FS: content, Dir: "content/docs", Name: "d
 ```
 
 `drafts: true` in a development configuration shows drafts while writing and keeps
-them out of production. A directory that does not exist, or a path leaving the file
-system, stops `collage.New`; a locale the application does not have stops startup.
+them out of production. A directory that does not exist, a path leaving the file
+system, or a locale the application does not have stops the application from
+starting.
 
 ## Limitations
 
@@ -207,3 +208,19 @@ system, stops `collage.New`; a locale the application does not have stops startu
 - In production a file added to the directory is not seen until `DirTag` is
   invalidated or the process restarts; the plugin does not watch the file system.
 - A plugin cannot add templates, so there is no default post or index layout.
+- `md.Tag` and `md.DirTag` called before the application starts — building a
+  feed's options, say — use the directories given in Go; a `dir` or `localeDirs`
+  set only in the JSON configuration is read when the application starts.
+
+## Changes
+
+### v0.1.1
+
+- The plugin sets itself up in `Init` rather than `Configure`, so it can be added
+  with `app.RegisterPlugin` too: collage v0.24.0 starts the application before a
+  static build lists a page's static parameters. A configuration that cannot work
+  now stops the application from starting rather than `collage.New`.
+- `md.Tag` and `md.DirTag` read the directories from the plugin's configuration
+  once the application has started; before that they read the `Options` given in
+  Go.
+- Requires collage v0.24.0.

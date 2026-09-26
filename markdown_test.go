@@ -2,6 +2,7 @@ package markdown_test
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -66,6 +67,8 @@ type setup struct {
 	dev    bool
 	opts   markdown.Options
 	cached bool
+	// late registers the plugin with RegisterPlugin rather than Config.Plugins.
+	late bool
 }
 
 func site(t *testing.T, s setup) (*collage.App, *markdown.Plugin) {
@@ -86,8 +89,10 @@ func newSite(s setup) (*collage.App, *markdown.Plugin, error) {
 			"t/post.html":  {Data: []byte(`<html><body><h1>{{.Title}}</h1><p class="d">{{.Description}}</p>{{range .Tags}}<i>{{.}}</i>{{end}}<b>{{index .Front "author"}}</b><main>{{.HTML}}</main></body></html>`)},
 			"t/index.html": {Data: []byte(`<html><body>{{range .}}<li>{{.Slug}}:{{.Title}}</li>{{end}}</body></html>`)},
 		}, Root: "t"},
-		Locale:  collage.LocaleConfig{Default: "en", Supported: []string{"en", "tr"}},
-		Plugins: []collage.Plugin{md},
+		Locale: collage.LocaleConfig{Default: "en", Supported: []string{"en", "tr"}},
+	}
+	if !s.late {
+		cfg.Plugins = []collage.Plugin{md}
 	}
 	if s.cached {
 		cfg.Cache = collage.CacheConfig{Enabled: true, Type: "memory", DefaultTTL: time.Hour}
@@ -95,6 +100,11 @@ func newSite(s setup) (*collage.App, *markdown.Plugin, error) {
 	app, err := collage.New(cfg)
 	if err != nil {
 		return nil, nil, err
+	}
+	if s.late {
+		if err := app.RegisterPlugin(md); err != nil {
+			return nil, nil, err
+		}
 	}
 	post := collage.NewPage("post").
 		WithContent(collage.NewFragment("post", "post.html").WithDataHandler(md.Handler()).Required().Build()).
@@ -195,10 +205,20 @@ func TestGetFields(t *testing.T) {
 }
 
 func TestNotFoundAndDrafts(t *testing.T) {
-	app, _ := site(t, setup{opts: markdown.Options{FS: content(), Dir: "content/blog"}})
-	for _, path := range []string{"/blog/nothing", "/blog/draft", "/blog/..%2Fsecret", "/blog/tr%2Fmerhaba"} {
+	app, md := site(t, setup{opts: markdown.Options{FS: content(), Dir: "content/blog"}})
+	for _, path := range []string{"/blog/nothing", "/blog/draft", "/blog/tr%2Fmerhaba"} {
 		if code := get(app, path).Code; code != http.StatusNotFound {
 			t.Errorf("GET %s = %d, want 404", path, code)
+		}
+	}
+	// collage cleans a dot segment out of the path before routing, so the slug
+	// never reaches the plugin; its own guard stays behind that.
+	if rec := get(app, "/blog/..%2Fsecret"); rec.Code != http.StatusMovedPermanently || rec.Header().Get("Location") != "/secret" {
+		t.Errorf("GET /blog/..%%2Fsecret = %d %q, want collage's redirect to /secret", rec.Code, rec.Header().Get("Location"))
+	}
+	for _, slug := range []string{"../secret", "tr/merhaba", "..", ""} {
+		if _, err := md.Get(context.Background(), "en", slug); !errors.Is(err, collage.ErrNotFound) {
+			t.Errorf("Get(%q) = %v, want ErrNotFound", slug, err)
 		}
 	}
 	app, _ = site(t, setup{opts: markdown.Options{FS: content(), Dir: "content/blog", Drafts: true}})
@@ -276,8 +296,17 @@ func TestDevelopmentRereads(t *testing.T) {
 }
 
 // A static build writes every document of every locale, and no draft.
+// A static build writes a page for every document, with the plugin registered
+// either way: the build starts the application, running Init, before it lists
+// the static parameters.
 func TestStaticBuild(t *testing.T) {
-	app, _ := site(t, setup{cached: true, opts: markdown.Options{FS: content(), Dir: "content/blog", LocaleDirs: map[string]string{"tr": "content/blog/tr"}}})
+	for _, late := range []bool{false, true} {
+		staticBuild(t, late)
+	}
+}
+
+func staticBuild(t *testing.T, late bool) {
+	app, _ := site(t, setup{late: late, cached: true, opts: markdown.Options{FS: content(), Dir: "content/blog", LocaleDirs: map[string]string{"tr": "content/blog/tr"}}})
 	out := t.TempDir()
 	b, err := collage.NewBuilder(app, collage.BuildOptions{OutDir: out})
 	if err != nil {
@@ -288,12 +317,12 @@ func TestStaticBuild(t *testing.T) {
 	}
 	for _, file := range []string{"blog/hello/index.html", "blog/second/index.html", "blog/undated/index.html", "tr/blog/merhaba/index.html"} {
 		if _, err := os.Stat(filepath.Join(out, file)); err != nil {
-			t.Errorf("not written: %s", file)
+			t.Errorf("late=%v: not written: %s", late, file)
 		}
 	}
 	for _, file := range []string{"blog/draft/index.html", "tr/blog/hello/index.html"} {
 		if _, err := os.Stat(filepath.Join(out, file)); err == nil {
-			t.Errorf("written: %s", file)
+			t.Errorf("late=%v: written: %s", late, file)
 		}
 	}
 }
@@ -319,8 +348,8 @@ func TestNamedInstances(t *testing.T) {
 	}
 }
 
-// A configuration that cannot work stops collage.New, where the plugin reads
-// it; content that cannot be read stops the application from starting.
+// A configuration that cannot work, or content that cannot be read, stops the
+// application from starting.
 func TestMisconfigurationStopsStartup(t *testing.T) {
 	for name, opts := range map[string]markdown.Options{
 		"no FS":             {Dir: "content/blog"},
@@ -329,8 +358,9 @@ func TestMisconfigurationStopsStartup(t *testing.T) {
 		"an escaping path":  {FS: content(), Dir: "../content"},
 		"a bad locale dir":  {FS: content(), Dir: "content/blog", LocaleDirs: map[string]string{"tr": "/abs"}},
 	} {
-		if _, _, err := newSite(setup{opts: opts}); err == nil {
-			t.Errorf("%s: collage.New succeeded", name)
+		app, _ := site(t, setup{opts: opts})
+		if code := get(app, "/blog").Code; code != http.StatusServiceUnavailable {
+			t.Errorf("%s: status %d, want 503", name, code)
 		}
 	}
 

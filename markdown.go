@@ -141,7 +141,6 @@ type set struct {
 // be a hook that silently never fires.
 var (
 	_ collage.Plugin              = (*Plugin)(nil)
-	_ collage.Configurer          = (*Plugin)(nil)
 	_ collage.CacheInvalidateHook = (*Plugin)(nil)
 )
 
@@ -157,15 +156,18 @@ func (p *Plugin) Name() string {
 	return Name
 }
 
-func (p *Plugin) Version() string                { return "0.1.0" }
+func (p *Plugin) Version() string                { return "0.1.1" }
 func (p *Plugin) Shutdown(context.Context) error { return nil }
 
-var errNotRegistered = errors.New("markdown: the plugin is not registered; add it to Config.Plugins")
+var errNotRegistered = errors.New("markdown: the plugin has not started; register it with the application, in Config.Plugins or with RegisterPlugin")
 
-// Configure reads the configuration and prepares the renderer. It is here rather
-// than in Init because a static build lists a page's static parameters before it
-// starts the application, and StaticParams has to read the files by then.
-func (p *Plugin) Configure(_ context.Context, host collage.ConfigHost) error {
+// Init reads the configuration, prepares the renderer, checks the locales
+// against the application's and reads every document, so a file whose front
+// matter does not parse stops the application from starting rather than failing
+// its first reader. It is all here, rather than partly in Configure, because a
+// static build starts the application before it lists a page's static
+// parameters, and a plugin without Configure can be added with RegisterPlugin.
+func (p *Plugin) Init(_ context.Context, host collage.Host) error {
 	if err := host.Config(&p.opts); err != nil {
 		return err
 	}
@@ -203,14 +205,7 @@ func (p *Plugin) Configure(_ context.Context, host collage.ConfigHost) error {
 		goldmark.WithRendererOptions(rendering...),
 	)
 	p.sets = make(map[string]*set)
-	p.ready = true
-	return nil
-}
 
-// Init checks the locales against the application's and reads every document,
-// so a file whose front matter does not parse stops the application from
-// starting rather than failing its first reader.
-func (p *Plugin) Init(_ context.Context, host collage.Host) error {
 	def, supported := host.Locales()
 	p.defaultLocale = def
 	for locale, dir := range p.opts.LocaleDirs {
@@ -221,8 +216,11 @@ func (p *Plugin) Init(_ context.Context, host collage.Host) error {
 			return err
 		}
 	}
-	_, err := p.load(p.opts.Dir, def)
-	return err
+	if _, err := p.load(p.opts.Dir, def); err != nil {
+		return err
+	}
+	p.ready = true
+	return nil
 }
 
 func contains(list []string, s string) bool {
@@ -250,7 +248,8 @@ func (p *Plugin) Tag(locale, slug string) string {
 
 // DirTag is the dependency tag of locale's directory as a whole — what a list
 // depends on besides its documents. Invalidate it when a file is added or
-// removed.
+// removed. Like Tag, before the application starts it reads the directories
+// given in Go, since the plugin's configuration is read in Init.
 func (p *Plugin) DirTag(locale string) string {
 	return dirTag(p.dir(locale))
 }
