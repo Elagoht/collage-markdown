@@ -156,7 +156,7 @@ func (p *Plugin) Name() string {
 	return Name
 }
 
-func (p *Plugin) Version() string                { return "0.1.1" }
+func (p *Plugin) Version() string                { return "0.1.2" }
 func (p *Plugin) Shutdown(context.Context) error { return nil }
 
 var errNotRegistered = errors.New("markdown: the plugin has not started; register it with the application, in Config.Plugins or with RegisterPlugin")

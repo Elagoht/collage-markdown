@@ -1,0 +1,31 @@
+{
+  "$schema": "https://raw.githubusercontent.com/Elagoht/collage-snippets-highlighter/main/schemas/collage-plugin-manifest.schema.json",
+  "name": "elagoht/markdown",
+  "description": "A collage plugin that makes a directory of Markdown files page data.",
+  "repository": "https://github.com/Elagoht/collage-markdown",
+  "config": {
+    "type": "object",
+    "description": "A collage plugin that makes a directory of Markdown files page data.",
+    "properties": {
+      "dir": {
+        "type": "string",
+        "description": "Dir is the directory in FS whose *.md files are the documents: one file per document, named for its slug. Subdirectories are not read, so a translation can live in one. Default \".\"."
+      },
+      "drafts": {
+        "type": "boolean",
+        "description": "Drafts includes documents whose front matter says draft: true. Off, a draft is not listed, not built, and answers 404."
+      },
+      "localeDirs": {
+        "type": "object",
+        "description": "LocaleDirs gives a locale its own directory: {\"tr\": \"content/blog/tr\"}. A locale not named reads Dir.",
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "unsafe": {
+        "type": "boolean",
+        "description": "Unsafe lets raw HTML written in the Markdown through to the page. Off, it is left out, so a document cannot put a script on the site."
+      }
+    }
+  }
+}
