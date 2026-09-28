@@ -211,10 +211,11 @@ func TestNotFoundAndDrafts(t *testing.T) {
 			t.Errorf("GET %s = %d, want 404", path, code)
 		}
 	}
-	// collage cleans a dot segment out of the path before routing, so the slug
-	// never reaches the plugin; its own guard stays behind that.
-	if rec := get(app, "/blog/..%2Fsecret"); rec.Code != http.StatusMovedPermanently || rec.Header().Get("Location") != "/secret" {
-		t.Errorf("GET /blog/..%%2Fsecret = %d %q, want collage's redirect to /secret", rec.Code, rec.Header().Get("Location"))
+	// Since collage v0.34.0 a path made dirty by an encoded slash is a 404 before
+	// routing, rather than cleaned into another route, so the slug never reaches
+	// the plugin; its own guard stays behind that.
+	if rec := get(app, "/blog/..%2Fsecret"); rec.Code != http.StatusNotFound {
+		t.Errorf("GET /blog/..%%2Fsecret = %d %q, want collage's 404", rec.Code, rec.Header().Get("Location"))
 	}
 	for _, slug := range []string{"../secret", "tr/merhaba", "..", ""} {
 		if _, err := md.Get(context.Background(), "en", slug); !errors.Is(err, collage.ErrNotFound) {
