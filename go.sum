@@ -1,5 +1,5 @@
-github.com/Elagoht/collage v0.24.0 h1:eFru3uIUPVbfSVc4tjT4LHii8TWVaZ1HCVS+rUtUNNU=
-github.com/Elagoht/collage v0.24.0/go.mod h1:tyGWGpujZXtCFFxn9pjws85HOFOt4QdiuRswwQhj1Qw=
+github.com/Elagoht/collage v0.34.2 h1:85GN0566DpBdQmWtxXuIUf0LFgnAigtulzHQ7Fy3/s0=
+github.com/Elagoht/collage v0.34.2/go.mod h1:tyGWGpujZXtCFFxn9pjws85HOFOt4QdiuRswwQhj1Qw=
 github.com/yuin/goldmark v1.8.6 h1:d0VcaP1sx9GkFVkoW+KtggpGi2KZ965i14b0+bDQST4=
 github.com/yuin/goldmark v1.8.6/go.mod h1:ip/1k0VRfGynBgxOz0yCqHrbZXhcjxyuS66Brc7iBKg=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405 h1:yhCVgyC4o1eVCa2tZl7eS0r+SDo693bJlVdllGtEeKM=

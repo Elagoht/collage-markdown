@@ -214,6 +214,11 @@ starting.
 
 ## Changes
 
+### v0.1.3
+
+- Built against collage v0.34.2, whose shared renders see only what their cache
+  key holds and whose router refuses an encoded slash in a path.
+
 ### v0.1.2
 
 - `collage.json`: the plugin described to editors — its template functions,
