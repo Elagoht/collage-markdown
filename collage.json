@@ -26,6 +26,7 @@
         "type": "boolean",
         "description": "Unsafe lets raw HTML written in the Markdown through to the page. Off, it is left out, so a document cannot put a script on the site."
       }
-    }
+    },
+    "additionalProperties": false
   }
 }
