@@ -16,7 +16,7 @@ app, err := collage.New(&collage.Config{
 
 app.RegisterPage(collage.NewPage("post").
 	WithContent(collage.NewFragment("post", "pages/post.html").
-		WithDataHandler(md.Handler()).
+		WithData(md.Handler()).
 		Required().
 		Build()).
 	WithPath("en", "/blog/{slug}").
@@ -25,7 +25,7 @@ app.RegisterPage(collage.NewPage("post").
 	Build())
 ```
 
-Requires collage v0.24.0 or later. Register it in `Config.Plugins` or with
+Requires collage v0.49.0 or later. Register it in `Config.Plugins` or with
 `app.RegisterPlugin`: it reads its configuration and its files when the application
 starts, which a static build does before it lists the pages to write.
 
@@ -36,8 +36,8 @@ application keeps the markup. It hands over:
 
 | | |
 | --- | --- |
-| `md.Handler()` | A data handler: the `Doc` that `rc.Param("slug")` names, in the render's locale, with the file's dependency tag. No such file, or a draft, is `collage.ErrNotFound`, so a `Required()` fragment answers 404 |
-| `md.IndexHandler()` | A data handler for an index page: every document, newest first, with the directory's tag and every file's |
+| `md.Handler()` | Data for `WithData`: the `Doc` that `rc.Param("slug")` names, in the render's locale, with the file's dependency tag. No such file, or a draft, is `collage.ErrNotFound`, so a `Required()` fragment answers 404 |
+| `md.IndexHandler()` | Data for an index page's `WithData`: every document, newest first, with the directory's tag and every file's |
 | `md.StaticParams()` | For `WithStaticParams`: `{"slug": …}` for every document of the locale being built |
 | `md.List(ctx)`, `md.ListIn(ctx, locale)` | The documents, newest first, for a feed's items or a sitemap's `LastMod` |
 | `md.Get(ctx, locale, slug)` | One document |
@@ -213,6 +213,14 @@ starting.
   set only in the JSON configuration is read when the application starts.
 
 ## Changes
+
+### v0.2.0
+
+- **`md.Handler()` and `md.IndexHandler()` return a `collage.Data`**, which
+  collage v0.49.0's `WithData` takes: `WithDataHandler(md.Handler())` becomes
+  `WithData(md.Handler())`. The template is checked against `markdown.Doc`, and
+  an index's against `[]markdown.Doc`, when the page is registered.
+- Requires collage v0.49.0.
 
 ### v0.1.3
 

@@ -107,14 +107,14 @@ func newSite(s setup) (*collage.App, *markdown.Plugin, error) {
 		}
 	}
 	post := collage.NewPage("post").
-		WithContent(collage.NewFragment("post", "post.html").WithDataHandler(md.Handler()).Required().Build()).
+		WithContent(collage.NewFragment("post", "post.html").WithData(md.Handler()).Required().Build()).
 		WithPath("en", "/blog/{slug}").
 		WithPath("tr", "/blog/{slug}").
 		Static().
 		WithStaticParams(md.StaticParams()).
 		Build()
 	index := collage.NewPage("index").
-		WithContent(collage.NewFragment("index", "index.html").WithDataHandler(md.IndexHandler()).Build()).
+		WithContent(collage.NewFragment("index", "index.html").WithData(md.IndexHandler()).Build()).
 		WithPath("en", "/blog").
 		WithPath("tr", "/blog").
 		Static().
@@ -395,7 +395,7 @@ func TestNotRegistered(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_ = app.RegisterPage(collage.NewPage("post").WithContent(collage.NewFragment("post", "p.html").WithDataHandler(md.Handler()).Required().Build()).WithPath("en", "/blog/{slug}").Build())
+	_ = app.RegisterPage(collage.NewPage("post").WithContent(collage.NewFragment("post", "p.html").WithData(md.Handler()).Required().Build()).WithPath("en", "/blog/{slug}").Build())
 	if code := get(app, "/blog/hello").Code; code != http.StatusInternalServerError {
 		t.Errorf("status %d, want 500", code)
 	}
