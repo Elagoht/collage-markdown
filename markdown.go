@@ -156,7 +156,7 @@ func (p *Plugin) Name() string {
 	return Name
 }
 
-func (p *Plugin) Version() string                { return "0.2.0" }
+func (p *Plugin) Version() string                { return "0.2.2" }
 func (p *Plugin) Shutdown(context.Context) error { return nil }
 
 var errNotRegistered = errors.New("markdown: the plugin has not started; register it with the application, in Config.Plugins or with RegisterPlugin")
@@ -168,7 +168,8 @@ var errNotRegistered = errors.New("markdown: the plugin has not started; registe
 // static build starts the application before it lists a page's static
 // parameters, and a plugin without Configure can be added with RegisterPlugin.
 func (p *Plugin) Init(_ context.Context, host collage.Host) error {
-	if err := host.Config(&p.opts); err != nil {
+	var err error
+	if p.opts, err = collage.PluginConfig(host, p.opts); err != nil {
 		return err
 	}
 	if p.opts.FS == nil {

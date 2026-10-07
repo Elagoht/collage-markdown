@@ -25,7 +25,7 @@ app.RegisterPage(collage.NewPage("post").
 	Build())
 ```
 
-Requires collage v0.49.0 or later. Register it in `Config.Plugins` or with
+Requires collage v0.50.0 or later. Register it in `Config.Plugins` or with
 `app.RegisterPlugin`: it reads its configuration and its files when the application
 starts, which a static build does before it lists the pages to write.
 
@@ -213,6 +213,12 @@ starting.
   set only in the JSON configuration is read when the application starts.
 
 ## Changes
+
+### v0.2.2
+
+- v0.2.1 was tagged at v0.2.0's commit by mistake and is retracted.
+- Requires collage v0.50.0, whose `collage.PluginConfig` reads the
+  configuration.
 
 ### v0.2.0
 
