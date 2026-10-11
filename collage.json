@@ -3,6 +3,7 @@
   "name": "elagoht/markdown",
   "description": "A collage plugin that makes a directory of Markdown files page data.",
   "repository": "https://github.com/Elagoht/collage-markdown",
+  "setup": "Documents are read from an `fs.FS`: give it to `markdown.New(markdown.Options{FS: ...})` in `plugins.go`, and set `\"dir\"` when they are not at its root.",
   "config": {
     "type": "object",
     "description": "A collage plugin that makes a directory of Markdown files page data.",
