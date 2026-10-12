@@ -70,43 +70,18 @@ type setup struct {
 	cached bool
 	// late registers the plugin with RegisterPlugin rather than Config.Plugins.
 	late bool
+	// unstarted keeps the application hand-built, for a test that asserts the 503
+	// an application serves when a plugin's Init fails (NewSite fails the test).
+	unstarted bool
 }
 
-func site(t *testing.T, s setup) (*collage.App, *markdown.Plugin) {
-	t.Helper()
-	app, md, err := newSite(s)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return app, md
-}
+const (
+	postHTML  = `<html><body><h1>{{.Title}}</h1><p class="d">{{.Description}}</p>{{range .Tags}}<i>{{.}}</i>{{end}}<b>{{index .Front "author"}}</b><main>{{.HTML}}</main></body></html>`
+	indexHTML = `<html><body>{{range .}}<li>{{.Slug}}:{{.Title}}</li>{{end}}</body></html>`
+)
 
-func newSite(s setup) (*collage.App, *markdown.Plugin, error) {
-	md := markdown.New(s.opts)
-	cfg := &collage.Config{
-		DevMode: s.dev,
-		Server:  collage.ServerConfig{Host: "localhost", Port: 3000},
-		Template: collage.TemplateConfig{FS: fstest.MapFS{
-			"t/post.html":  {Data: []byte(`<html><body><h1>{{.Title}}</h1><p class="d">{{.Description}}</p>{{range .Tags}}<i>{{.}}</i>{{end}}<b>{{index .Front "author"}}</b><main>{{.HTML}}</main></body></html>`)},
-			"t/index.html": {Data: []byte(`<html><body>{{range .}}<li>{{.Slug}}:{{.Title}}</li>{{end}}</body></html>`)},
-		}, Root: "t"},
-		Locale: collage.LocaleConfig{Default: "en", Supported: []string{"en", "tr"}},
-	}
-	if !s.late {
-		cfg.Plugins = []collage.Plugin{md}
-	}
-	if s.cached {
-		cfg.Cache = collage.CacheConfig{Enabled: true, Type: "memory", DefaultTTL: time.Hour}
-	}
-	app, err := collage.New(cfg)
-	if err != nil {
-		return nil, nil, err
-	}
-	if s.late {
-		if err := app.RegisterPlugin(md); err != nil {
-			return nil, nil, err
-		}
-	}
+// pages are the post and index pages the tests render, served by md.
+func pages(md *markdown.Plugin) []*collage.Page {
 	post := collage.NewPage("post").
 		WithContent(collage.NewFragment("post", "post.html").WithData(md.Handler()).Required().Build()).
 		WithPath("en", "/blog/{slug}").
@@ -120,12 +95,67 @@ func newSite(s setup) (*collage.App, *markdown.Plugin, error) {
 		WithPath("tr", "/blog").
 		Static().
 		Build()
-	for _, p := range []*collage.Page{post, index} {
-		if err := app.RegisterPage(p); err != nil {
-			return nil, nil, err
+	return []*collage.Page{post, index}
+}
+
+func site(t *testing.T, s setup) (*collage.App, *markdown.Plugin) {
+	t.Helper()
+	if s.late || s.unstarted {
+		return handSite(t, s)
+	}
+	md := markdown.New(s.opts)
+	p := pages(md)
+	return collagetest.NewSite(t,
+		collagetest.WithPlugins(md),
+		collagetest.WithTemplates(map[string]string{"post.html": postHTML, "index.html": indexHTML}),
+		collagetest.WithConfig(func(c *collage.Config) {
+			c.DevMode = s.dev
+			c.Locale = collage.LocaleConfig{Default: "en", Supported: []string{"en", "tr"}}
+			if s.cached {
+				c.Cache = collage.CacheConfig{Enabled: true, Type: "memory", DefaultTTL: time.Hour}
+			}
+		}),
+		collagetest.WithoutHome(),
+		collagetest.WithRegister(p[0], p[1]),
+	).App, md
+}
+
+// handSite is hand-built: with late, the plugin goes in with RegisterPlugin
+// before any page, an order a collagetest site cannot give it; with unstarted,
+// the application is not started, so a failing Init is seen as a 503.
+func handSite(t *testing.T, s setup) (*collage.App, *markdown.Plugin) {
+	t.Helper()
+	md := markdown.New(s.opts)
+	cfg := &collage.Config{
+		DevMode: s.dev,
+		Server:  collage.ServerConfig{Host: "localhost", Port: 3000},
+		Template: collage.TemplateConfig{FS: fstest.MapFS{
+			"t/post.html":  {Data: []byte(postHTML)},
+			"t/index.html": {Data: []byte(indexHTML)},
+		}, Root: "t"},
+		Locale: collage.LocaleConfig{Default: "en", Supported: []string{"en", "tr"}},
+	}
+	if s.cached {
+		cfg.Cache = collage.CacheConfig{Enabled: true, Type: "memory", DefaultTTL: time.Hour}
+	}
+	if !s.late {
+		cfg.Plugins = []collage.Plugin{md}
+	}
+	app, err := collage.New(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.late {
+		if err := app.RegisterPlugin(md); err != nil {
+			t.Fatal(err)
 		}
 	}
-	return app, md, nil
+	for _, p := range pages(md) {
+		if err := app.RegisterPage(p); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return app, md
 }
 
 func get(app *collage.App, path string) *httptest.ResponseRecorder {
@@ -356,7 +386,7 @@ func TestMisconfigurationStopsStartup(t *testing.T) {
 		"an escaping path":  {FS: content(), Dir: "../content"},
 		"a bad locale dir":  {FS: content(), Dir: "content/blog", LocaleDirs: map[string]string{"tr": "/abs"}},
 	} {
-		app, _ := site(t, setup{opts: opts})
+		app, _ := site(t, setup{opts: opts, unstarted: true})
 		if code := get(app, "/blog").Code; code != http.StatusServiceUnavailable {
 			t.Errorf("%s: status %d, want 503", name, code)
 		}
@@ -375,7 +405,7 @@ func TestMisconfigurationStopsStartup(t *testing.T) {
 		"a date that is not":  {FS: broken("---\ndate: last tuesday\n---\n"), Dir: "content/blog"},
 		"a draft that is not": {FS: broken("---\ndraft: maybe\n---\n"), Dir: "content/blog"},
 	} {
-		app, _ := site(t, setup{opts: opts})
+		app, _ := site(t, setup{opts: opts, unstarted: true})
 		if code := get(app, "/blog").Code; code != http.StatusServiceUnavailable {
 			t.Errorf("%s: status %d, want 503", name, code)
 		}
