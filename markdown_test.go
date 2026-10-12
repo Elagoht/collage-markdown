@@ -309,11 +309,7 @@ func TestStaticBuild(t *testing.T) {
 func staticBuild(t *testing.T, late bool) {
 	app, _ := site(t, setup{late: late, cached: true, opts: markdown.Options{FS: content(), Dir: "content/blog", LocaleDirs: map[string]string{"tr": "content/blog/tr"}}})
 	out := t.TempDir()
-	b, err := collage.NewBuilder(app, collage.BuildOptions{OutDir: out})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := b.Build(context.Background()); err != nil {
+	if _, err := collage.Build(context.Background(), app, collage.BuildOptions{OutDir: out}); err != nil {
 		t.Fatal(err)
 	}
 	for _, file := range []string{"blog/hello/index.html", "blog/second/index.html", "blog/undated/index.html", "tr/blog/merhaba/index.html"} {

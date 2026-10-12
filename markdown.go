@@ -156,7 +156,7 @@ func (p *Plugin) Name() string {
 	return Name
 }
 
-func (p *Plugin) Version() string                { return "0.2.3" }
+func (p *Plugin) Version() string                { return "0.2.4" }
 func (p *Plugin) Shutdown(context.Context) error { return nil }
 
 var errNotRegistered = errors.New("markdown: the plugin has not started; register it with the application, in Config.Plugins or with RegisterPlugin")
@@ -264,7 +264,7 @@ func fileTag(dir, slug string) string { return dirTag(dir) + slug + ".md" }
 // the render's locale, as a Doc, with the file's dependency tag. A slug with no
 // document — or a draft, unless Options.Drafts — is collage.ErrNotFound.
 func (p *Plugin) Handler() collage.Data {
-	return collage.DataHandler(func(ctx context.Context, rc *collage.RenderContext) (Doc, []string, error) {
+	return collage.LoadTagged(func(ctx context.Context, rc *collage.RenderContext) (Doc, []string, error) {
 		doc, err := p.Get(ctx, rc.Locale, rc.Param("slug"))
 		if err != nil {
 			return Doc{}, nil, err
@@ -278,7 +278,7 @@ func (p *Plugin) Handler() collage.Data {
 // document's, so an edit to any of them — or a file added — renders the index
 // again.
 func (p *Plugin) IndexHandler() collage.Data {
-	return collage.DataHandler(func(ctx context.Context, rc *collage.RenderContext) ([]Doc, []string, error) {
+	return collage.LoadTagged(func(ctx context.Context, rc *collage.RenderContext) ([]Doc, []string, error) {
 		docs, err := p.ListIn(ctx, rc.Locale)
 		if err != nil {
 			return nil, nil, err
