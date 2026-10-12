@@ -419,3 +419,27 @@ func TestListInALocale(t *testing.T) {
 		t.Fatalf(`List(ctx, "tr") = %+v, %v; want merhaba`, tr, err)
 	}
 }
+
+// "" is the default locale everywhere: List, Get, Tag and DirTag agree with
+// the default locale's own name, its LocaleDirs entry included.
+func TestEmptyLocaleIsTheDefault(t *testing.T) {
+	md := markdown.New(markdown.Options{FS: content(), Dir: "content/blog", LocaleDirs: map[string]string{"en": "content/blog/tr"}})
+	collagetest.NewSite(t,
+		collagetest.WithPlugins(md),
+		collagetest.WithConfig(func(c *collage.Config) {
+			c.Locale = collage.LocaleConfig{Default: "en", Supported: []string{"en", "tr"}}
+		}))
+	ctx := context.Background()
+	empty, err1 := md.List(ctx, "")
+	en, err2 := md.List(ctx, "en")
+	if err1 != nil || err2 != nil || len(empty) != 1 || len(en) != 1 || empty[0].Slug != en[0].Slug || empty[0].Locale != "en" {
+		t.Errorf(`List(ctx, "") = %+v, %v; List(ctx, "en") = %+v, %v`, empty, err1, en, err2)
+	}
+	doc, err := md.Get(ctx, "", "merhaba")
+	if err != nil || doc.Locale != "en" {
+		t.Errorf(`Get(ctx, "", "merhaba") = locale %q, %v; want en`, doc.Locale, err)
+	}
+	if md.Tag("", "merhaba") != md.Tag("en", "merhaba") || md.DirTag("") != md.DirTag("en") {
+		t.Errorf("tags differ: %q/%q, %q/%q", md.Tag("", "merhaba"), md.Tag("en", "merhaba"), md.DirTag(""), md.DirTag("en"))
+	}
+}

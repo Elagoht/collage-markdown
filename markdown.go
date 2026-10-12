@@ -235,13 +235,15 @@ func contains(list []string, s string) bool {
 
 // dir is where locale's documents are.
 func (p *Plugin) dir(locale string) string {
+	locale = p.resolve(locale)
 	if dir, ok := p.opts.LocaleDirs[locale]; ok {
 		return dir
 	}
 	return p.opts.Dir
 }
 
-// Tag is the dependency tag of the document slug in locale: invalidating it
+// Tag is the dependency tag of the document slug in locale ("" is the default
+// locale, as everywhere in the plugin): invalidating it
 // renders the document again, and has the plugin read the file again.
 func (p *Plugin) Tag(locale, slug string) string {
 	return fileTag(p.dir(locale), slug)
@@ -308,11 +310,12 @@ func (p *Plugin) StaticParams() collage.StaticParamsFunc {
 	}
 }
 
-// Get returns the document slug in locale.
+// Get returns the document slug in locale; "" is the default locale.
 func (p *Plugin) Get(_ context.Context, locale, slug string) (Doc, error) {
 	if !p.ready {
 		return Doc{}, errNotRegistered
 	}
+	locale = p.resolve(locale)
 	dir := p.dir(locale)
 	// A slug is one file of the directory, never a path out of it.
 	if slug == "" || strings.ContainsAny(slug, `/\`) || slug == "." || slug == ".." {
@@ -354,12 +357,7 @@ func (p *Plugin) List(_ context.Context, locale string) ([]Doc, error) {
 	if !p.ready {
 		return nil, errNotRegistered
 	}
-	if locale == "" {
-		locale = p.defaultLocale
-	}
-	if !p.ready {
-		return nil, errNotRegistered
-	}
+	locale = p.resolve(locale)
 	s, err := p.load(p.dir(locale), locale)
 	if err != nil {
 		return nil, err
@@ -383,6 +381,15 @@ func (p *Plugin) List(_ context.Context, locale string) ([]Doc, error) {
 
 // withLocale is a copy of d for locale. Two locales may read one directory, and
 // the documents parsed from it are shared between them.
+// resolve is locale, or the default locale for "": the one place an empty
+// locale is given its meaning, so List, Get, Tag and DirTag agree.
+func (p *Plugin) resolve(locale string) string {
+	if locale == "" {
+		return p.defaultLocale
+	}
+	return locale
+}
+
 func withLocale(d *Doc, locale string) Doc {
 	out := *d
 	out.Locale = locale

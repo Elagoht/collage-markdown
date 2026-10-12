@@ -218,6 +218,11 @@ starting.
 - `md.List(ctx)` and `md.ListIn(ctx, locale)` are one method,
   `md.List(ctx, locale)`: write `md.List(ctx, "")` for the default locale's
   documents and `md.List(ctx, "tr")` where you wrote `md.ListIn(ctx, "tr")`.
+- `""` means the default locale everywhere — `List`, `Get`, `Tag` and `DirTag`
+  — including the default locale's `localeDirs` entry; `Get(ctx, "", slug)`
+  returns the document with its `Locale` set to the default locale.
+- collage.json's setup note says to keep the plugin in a variable for
+  `md.Handler()` and `md.IndexHandler()`.
 - Requires collage v0.61.0.
 
 ### v0.2.2
