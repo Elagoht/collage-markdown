@@ -156,7 +156,7 @@ func (p *Plugin) Name() string {
 	return Name
 }
 
-func (p *Plugin) Version() string                { return "0.2.4" }
+func (p *Plugin) Version() string                { return "0.3.0" }
 func (p *Plugin) Shutdown(context.Context) error { return nil }
 
 var errNotRegistered = errors.New("markdown: the plugin has not started; register it with the application, in Config.Plugins or with RegisterPlugin")
@@ -279,7 +279,7 @@ func (p *Plugin) Handler() collage.Data {
 // again.
 func (p *Plugin) IndexHandler() collage.Data {
 	return collage.LoadTagged(func(ctx context.Context, rc *collage.RenderContext) ([]Doc, []string, error) {
-		docs, err := p.ListIn(ctx, rc.Locale)
+		docs, err := p.List(ctx, rc.Locale)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -296,7 +296,7 @@ func (p *Plugin) IndexHandler() collage.Data {
 // built as {"slug": …}: what PageBuilder.WithStaticParams takes.
 func (p *Plugin) StaticParams() collage.StaticParamsFunc {
 	return func(ctx context.Context, locale string) ([]map[string]string, error) {
-		docs, err := p.ListIn(ctx, locale)
+		docs, err := p.List(ctx, locale)
 		if err != nil {
 			return nil, err
 		}
@@ -344,17 +344,19 @@ func (p *Plugin) Get(_ context.Context, locale, slug string) (Doc, error) {
 	return withLocale(doc, locale), nil
 }
 
-// List returns the default locale's documents, newest first, drafts left out
-// unless Options.Drafts: an index page's, a feed's or a sitemap's contents.
-func (p *Plugin) List(ctx context.Context) ([]Doc, error) {
-	return p.ListIn(ctx, p.defaultLocale)
-}
-
-// ListIn returns locale's documents, as List does.
+// List returns locale's documents, newest first, drafts left out unless
+// Options.Drafts: an index page's, a feed's or a sitemap's contents. "" is the
+// default locale.
 //
 // Newest first by Date; documents without one come after every dated one, by
 // slug.
-func (p *Plugin) ListIn(_ context.Context, locale string) ([]Doc, error) {
+func (p *Plugin) List(_ context.Context, locale string) ([]Doc, error) {
+	if !p.ready {
+		return nil, errNotRegistered
+	}
+	if locale == "" {
+		locale = p.defaultLocale
+	}
 	if !p.ready {
 		return nil, errNotRegistered
 	}

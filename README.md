@@ -25,7 +25,7 @@ app.RegisterPage(collage.NewPage("post").
 	Build())
 ```
 
-Requires collage v0.50.0 or later. Register it in `Config.Plugins` or with
+Requires collage v0.61.0 or later. Register it in `Config.Plugins` or with
 `app.RegisterPlugin`: it reads its configuration and its files when the application
 starts, which a static build does before it lists the pages to write.
 
@@ -39,7 +39,7 @@ application keeps the markup. It hands over:
 | `md.Handler()` | Data for `WithData`: the `Doc` that `rc.Param("slug")` names, in the render's locale, with the file's dependency tag. No such file, or a draft, is `collage.ErrNotFound`, so a `Required()` fragment answers 404 |
 | `md.IndexHandler()` | Data for an index page's `WithData`: every document, newest first, with the directory's tag and every file's |
 | `md.StaticParams()` | For `WithStaticParams`: `{"slug": …}` for every document of the locale being built |
-| `md.List(ctx)`, `md.ListIn(ctx, locale)` | The documents, newest first, for a feed's items or a sitemap's `LastMod` |
+| `md.List(ctx, locale)` | The locale's documents, newest first, for a feed's items or a sitemap's `LastMod`; `""` is the default locale |
 | `md.Get(ctx, locale, slug)` | One document |
 | `md.Tag(locale, slug)`, `md.DirTag(locale)` | The dependency tags, to invalidate |
 
@@ -146,10 +146,9 @@ translation can live in a subdirectory of the original. A locale not named reads
 ```go
 feed.New(feed.Feed{
 	Title:   "The blog",
-	BaseURL: "https://example.com",
 	Tags:    []string{md.DirTag("en")},
 	Items: func(ctx context.Context) ([]feed.Item, error) {
-		docs, err := md.List(ctx)
+		docs, err := md.List(ctx, "en")
 		// … one feed.Item per doc: Title, "/blog/"+Slug, Description, HTML, Date, Updated, Tags
 	},
 })
@@ -213,6 +212,13 @@ starting.
   set only in the JSON configuration is read when the application starts.
 
 ## Changes
+
+### Changed in v0.3.0
+
+- `md.List(ctx)` and `md.ListIn(ctx, locale)` are one method,
+  `md.List(ctx, locale)`: write `md.List(ctx, "")` for the default locale's
+  documents and `md.List(ctx, "tr")` where you wrote `md.ListIn(ctx, "tr")`.
+- Requires collage v0.61.0.
 
 ### v0.2.2
 

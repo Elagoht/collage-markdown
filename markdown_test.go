@@ -14,6 +14,7 @@ import (
 
 	markdown "github.com/Elagoht/collage-markdown"
 	"github.com/Elagoht/collage/pkg/collage"
+	"github.com/Elagoht/collage/pkg/collagetest"
 )
 
 const hello = `---
@@ -243,13 +244,13 @@ func TestList(t *testing.T) {
 	if !strings.Contains(body, want) {
 		t.Errorf("index = %s, want %s", body, want)
 	}
-	docs, err := md.List(context.Background())
+	docs, err := md.List(context.Background(), "")
 	if err != nil || len(docs) != 3 {
 		t.Fatalf("List = %d docs, %v", len(docs), err)
 	}
 	app, md = site(t, setup{opts: markdown.Options{FS: content(), Dir: "content/blog", Drafts: true}})
 	get(app, "/blog")
-	if docs, _ := md.List(context.Background()); len(docs) != 4 || docs[0].Slug != "draft" {
+	if docs, _ := md.List(context.Background(), ""); len(docs) != 4 || docs[0].Slug != "draft" {
 		t.Errorf("List with drafts = %+v", docs)
 	}
 }
@@ -395,7 +396,26 @@ func TestNotRegistered(t *testing.T) {
 	if code := get(app, "/blog/hello").Code; code != http.StatusInternalServerError {
 		t.Errorf("status %d, want 500", code)
 	}
-	if _, err := md.List(context.Background()); err == nil {
+	if _, err := md.List(context.Background(), ""); err == nil {
 		t.Error("List worked without the plugin being registered")
+	}
+}
+
+// List takes the locale: "" is the default one's documents, "tr" the Turkish
+// directory's.
+func TestListInALocale(t *testing.T) {
+	md := markdown.New(markdown.Options{FS: content(), Dir: "content/blog", LocaleDirs: map[string]string{"tr": "content/blog/tr"}})
+	collagetest.NewSite(t,
+		collagetest.WithPlugins(md),
+		collagetest.WithConfig(func(c *collage.Config) {
+			c.Locale = collage.LocaleConfig{Default: "en", Supported: []string{"en", "tr"}}
+		}))
+	en, err := md.List(context.Background(), "")
+	if err != nil || len(en) != 3 {
+		t.Fatalf(`List(ctx, "") = %d docs, %v; want the 3 published en documents`, len(en), err)
+	}
+	tr, err := md.List(context.Background(), "tr")
+	if err != nil || len(tr) != 1 || tr[0].Slug != "merhaba" {
+		t.Fatalf(`List(ctx, "tr") = %+v, %v; want merhaba`, tr, err)
 	}
 }
