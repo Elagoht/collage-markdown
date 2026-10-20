@@ -3,7 +3,7 @@
   "name": "elagoht/markdown",
   "description": "A collage plugin that makes a directory of Markdown files page data.",
   "repository": "https://github.com/Elagoht/collage-markdown",
-  "setup": "Needs a filesystem, or the application does not start: put the posts in `templates/posts/*.md`, and in `plugins.go` declare `var md = markdown.New(markdown.Options{FS: files, Dir: \"templates/posts\"})` and list `md` in `plugins()`.\nRegister a page for them in `routes.go`, `pages.Post(md)`, whose content fragment has `.WithData(md.Handler()).Required()`, with `.WithPath(\"en\", \"/blog/{slug}\")` and `.WithStaticParams(md.StaticParams())`; its template shows `{{.Title}}` and `{{.HTML}}`.",
+  "setup": "Needs a filesystem, or the application does not start: put the posts in `templates/posts/*.md`, and in `plugins.go` declare `var md = markdown.New(markdown.Options{FS: files, Dir: \"templates/posts\"})` and list `md` in `plugins()`.\nRegister a page for them in `routes.go`, `pages.Post(md)`, whose content fragment has `.WithData(md.Handler()).Required()`, with `.WithPath(\"en\", \"/blog/{slug}\")` and `.WithStaticParams(md.StaticParams())`; its template shows `{{.Title}}` and `{{.HTML}}`.\n`files` is what `embed.go` embeds in a project `collage new` made (before collage v0.68.0, `templatesFS` or `staticFS`).",
   "config": {
     "type": "object",
     "description": "A collage plugin that makes a directory of Markdown files page data.",
