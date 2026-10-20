@@ -3,7 +3,7 @@
   "name": "elagoht/markdown",
   "description": "A collage plugin that makes a directory of Markdown files page data.",
   "repository": "https://github.com/Elagoht/collage-markdown",
-  "setup": "Documents are read from an `fs.FS`, and pages read them through the plugin: keep it in a variable in `plugins.go` — `md := markdown.New(markdown.Options{FS: ...})` — so pages can use `md.Handler()` and `md.IndexHandler()`, put `md` in the plugins list, and set `\"dir\"` when the documents are not at the filesystem's root.",
+  "setup": "Needs a filesystem, or the application does not start: put the posts in `templates/posts/*.md`, and in `plugins.go` declare `var md = markdown.New(markdown.Options{FS: files, Dir: \"templates/posts\"})` and list `md` in `plugins()`.\nRegister a page for them in `routes.go`, `pages.Post(md)`, whose content fragment has `.WithData(md.Handler()).Required()`, with `.WithPath(\"en\", \"/blog/{slug}\")` and `.WithStaticParams(md.StaticParams())`; its template shows `{{.Title}}` and `{{.HTML}}`.",
   "config": {
     "type": "object",
     "description": "A collage plugin that makes a directory of Markdown files page data.",
