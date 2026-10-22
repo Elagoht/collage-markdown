@@ -36,6 +36,7 @@ import (
 	"html/template"
 	"io/fs"
 	"path"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -73,7 +74,9 @@ type Options struct {
 	// draft is not listed, not built, and answers 404.
 	Drafts bool `json:"drafts"`
 	// Unsafe lets raw HTML written in the Markdown through to the page. Off, it
-	// is left out, so a document cannot put a script on the site.
+	// is left out, so a document cannot put a script on the site, and a
+	// heading's {…} attributes lose style and any on… handler, so it cannot
+	// restyle the page either; id and class are kept.
 	Unsafe bool `json:"unsafe"`
 	// Name tells several sets of documents apart — a blog and the docs — when
 	// the application registers more than one: the plugin is then
@@ -156,7 +159,7 @@ func (p *Plugin) Name() string {
 	return Name
 }
 
-func (p *Plugin) Version() string                { return "0.3.1" }
+func (p *Plugin) Version() string                { return "0.3.2" }
 func (p *Plugin) Shutdown(context.Context) error { return nil }
 
 var errNotRegistered = errors.New("markdown: the plugin has not started; register it with the application, in Config.Plugins or with RegisterPlugin")
@@ -185,7 +188,7 @@ func (p *Plugin) Init(_ context.Context, host collage.Host) error {
 	}
 	for _, dir := range dirs {
 		if !fs.ValidPath(dir) {
-			return fmt.Errorf("markdown: %q is not a directory path in the file system: no leading slash, no ..", dir)
+			return fmt.Errorf("markdown: %q is not a directory path in the file system (no leading slash, no \"..\")", dir)
 		}
 		info, err := fs.Stat(p.opts.FS, dir)
 		if err != nil {
@@ -470,6 +473,9 @@ func (p *Plugin) parse(dir, slug, locale string, source []byte) (*Doc, error) {
 		if !ok || !entering {
 			return ast.WalkContinue, nil
 		}
+		if !p.opts.Unsafe {
+			stripUnsafeAttributes(heading)
+		}
 		label := plain(heading, body)
 		if heading.Level == 1 && doc.Title == "" && title == nil {
 			doc.Title = label
@@ -498,6 +504,28 @@ func (p *Plugin) parse(dir, slug, locale string, source []byte) (*Doc, error) {
 	}
 	doc.HTML = template.HTML(out.String()) // rendered by goldmark, which leaves raw HTML out unless Options.Unsafe
 	return doc, nil
+}
+
+// stripUnsafeAttributes removes style and every on… attribute from a heading's
+// {…} attributes. goldmark renders a heading attribute it knows as global, and
+// style is one, so `## Title {style="position:fixed;inset:0"}` would lay a
+// heading over the whole page even with raw HTML off. Event handlers are not
+// in goldmark's list, so it drops them already; they are removed here too, in
+// any case, so no other renderer of this tree can be handed one. id and class,
+// what the syntax is for, are kept.
+func stripUnsafeAttributes(n ast.Node) {
+	all := n.Attributes()
+	kept := slices.DeleteFunc(slices.Clone(all), func(a ast.Attribute) bool {
+		name := strings.ToLower(string(a.Name))
+		return name == "style" || strings.HasPrefix(name, "on")
+	})
+	if len(kept) == len(all) {
+		return
+	}
+	n.RemoveAttributes()
+	for _, a := range kept {
+		n.SetAttribute(a.Name, a.Value)
+	}
 }
 
 // splitFront separates a file's front matter from its body. A file that does not

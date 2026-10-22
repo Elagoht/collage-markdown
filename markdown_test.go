@@ -266,6 +266,26 @@ func TestUnsafe(t *testing.T) {
 	}
 }
 
+// A heading's {…} attributes cannot style the page unless Unsafe is on: style
+// would let a document lay a heading over the whole site. id and class, what
+// the syntax is for, are kept; an event handler never gets through.
+func TestHeadingAttributesSafe(t *testing.T) {
+	files := fstest.MapFS{"content/blog/overlay.md": {Data: []byte(
+		"# Overlay\n\n## Cover {#cover .note style=\"position:fixed;inset:0\" STYLE=\"color:red\" onclick=\"x()\" title=\"t\"}\n\nText.\n")}}
+	app, _ := site(t, setup{opts: markdown.Options{FS: files, Dir: "content/blog"}})
+	body := get(app, "/blog/overlay").Body.String()
+	if !strings.Contains(body, `<h2 id="cover" class="note" title="t">Cover</h2>`) {
+		t.Errorf("id, class and title were not kept:\n%s", body)
+	}
+	if lower := strings.ToLower(body); strings.Contains(lower, "position:fixed") || strings.Contains(lower, "color:red") || strings.Contains(lower, "onclick") {
+		t.Errorf("a heading attribute styled the page with Unsafe off:\n%s", body)
+	}
+	app, _ = site(t, setup{opts: markdown.Options{FS: files, Dir: "content/blog", Unsafe: true}})
+	if body := get(app, "/blog/overlay").Body.String(); !strings.Contains(body, `style="position:fixed;inset:0"`) {
+		t.Errorf("Unsafe did not let style through:\n%s", body)
+	}
+}
+
 // Newest first; an undated document after every dated one; a draft nowhere.
 func TestList(t *testing.T) {
 	app, md := site(t, setup{opts: markdown.Options{FS: content(), Dir: "content/blog"}})

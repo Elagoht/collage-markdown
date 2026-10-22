@@ -105,6 +105,10 @@ reads; [elagoht/highlight](https://github.com/Elagoht/collage-highlight) colours
 
 Raw HTML written in the Markdown is left out unless `unsafe` is on: a document
 cannot put a script on the site by accident. Turn it on when the files are yours.
+The same goes for a heading's `{…}` attributes: with `unsafe` off, `style` is
+dropped, so `## Title {style="position:fixed;inset:0"}` cannot lay a heading over
+the page, and so is any `on…` event handler. `id`, `class` and the other plain
+attributes stay.
 
 ## Keeping it current
 
@@ -212,6 +216,12 @@ starting.
   set only in the JSON configuration is read when the application starts.
 
 ## Changes
+
+### v0.3.2
+
+- With `unsafe` off, a heading's `{…}` attributes lose `style` (and any `on…`
+  handler, which goldmark already dropped). Before, `style` got through, so a
+  document could restyle the page with raw HTML off.
 
 ### Changed in v0.3.0
 
